@@ -23,7 +23,7 @@ export default function App() {
         />
 
         <Route
-          path="/start-session/:courseId"
+          path="/start/:courseId"
           element={
             <ProtectedRoute>
               <StartSession />
