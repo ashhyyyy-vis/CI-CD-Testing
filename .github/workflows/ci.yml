@@ -1,4 +1,4 @@
-name: CI
+name: Stack-Agnostic CI
 
 on:
   push:
@@ -9,44 +9,22 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        app-dir: ['backend_api', 'teacher_app']
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup build environment for ${{ matrix.app-dir }}
+        uses: ./.github/actions/setup
         with:
-          node-version: "20"
-          #cache: "npm"
-
-      # ───────────────────────────────
-      # Backend API
-      # ───────────────────────────────
-      - name: Install backend dependencies
-        working-directory: backend_api
-        run: npm install
-
-      - name: Run backend tests
-        working-directory: backend_api
-        run: npm test --if-present -- --passWithNoTests
-
-
-      - name: Build backend
-        working-directory: backend_api
-        run: npm run build --if-present
-
-      # ───────────────────────────────
-      # Teacher App
-      # ───────────────────────────────
-      - name: Install teacher app dependencies
-        working-directory: teacher_app
-        run: npm install
-
-      - name: Run teacher tests
-        working-directory: teacher_app
-        run: npm test --if-present -- --passWithNoTests
-
-      - name: Build teacher app
-        working-directory: teacher_app
-        run: npm run build --if-present
+          app-dir: ${{ matrix.app-dir }}
+          config-path: ./config.json
+    
+    # Add deployment steps here if needed
+    # - name: Deploy ${{ matrix.app-dir }}
+    #   if: github.ref == 'refs/heads/main' && success()
+    #   run: |
+    #     # Add deployment commands here
+    #     echo "Deploying ${{ matrix.app-dir }}..."

@@ -1,0 +1,18 @@
+{
+  "apps": {
+    "backend_api": {
+      "type": "node",
+      "version": "16.x",
+      "install-command": "npm install",
+      "test-command": "npm test",
+      "build-command": "npm run build"
+    },
+    "teacher_app": {
+      "type": "node",
+      "version": "16.x",
+      "install-command": "npm install",
+      "test-command": "npm test",
+      "build-command": "npm run build"
+    }
+  }
+}
