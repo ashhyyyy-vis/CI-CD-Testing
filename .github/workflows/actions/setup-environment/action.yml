@@ -1,0 +1,84 @@
+name: 'Setup Environment'
+description: 'Setup development environment based on selected runtime'
+
+inputs:
+  runtime:
+    description: "Which environment to setup (node, python, java, go, ruby, php, dotnet, rust)"
+    required: true
+    type: string
+
+  version:
+    description: "Version for that runtime"
+    required: false
+    type: string
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    # Node.js
+    - name: Setup Node.js
+      if: ${{ inputs.runtime == 'node' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.version || '20.x' }}
+        cache: "npm"
+
+    # Python
+    - name: Setup Python
+      if: ${{ inputs.runtime == 'python' }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.version || '3.x' }}
+        cache: "pip"
+
+    # Java
+    - name: Setup Java
+      if: ${{ inputs.runtime == 'java' }}
+      uses: actions/setup-java@v4
+      with:
+        distribution: "temurin"
+        java-version: ${{ inputs.version || '17' }}
+        cache: "gradle"
+
+    # Go
+    - name: Setup Go
+      if: ${{ inputs.runtime == 'go' }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.version || '1.21.x' }}
+        cache: true
+
+    # Ruby
+    - name: Setup Ruby
+      if: ${{ inputs.runtime == 'ruby' }}
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.version || '3.x' }}
+        bundler-cache: true
+
+    # PHP
+    - name: Setup PHP
+      if: ${{ inputs.runtime == 'php' }}
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.version || '8.2' }}
+        tools: composer:v2
+        coverage: none
+
+    # .NET
+    - name: Setup .NET
+      if: ${{ inputs.runtime == 'dotnet' }}
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.version || '7.0.x' }}
+
+    # Rust
+    - name: Setup Rust
+      if: ${{ inputs.runtime == 'rust' }}
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ inputs.version || 'stable' }}
+        profile: minimal
+        components: rustfmt, clippy
+        override: true
