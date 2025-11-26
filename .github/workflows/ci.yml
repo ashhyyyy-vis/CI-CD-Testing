@@ -2,25 +2,50 @@ name: Stack-Agnostic CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["test"]
   pull_request:
-    branches: ["main"]
+    branches: ["test"]
 
 jobs:
-  build-and-test:
+  prepare-matrix:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app-dir: ["App/backend_api", "App/teacher_app"]
+    outputs:
+      matrix: ${{ steps.read-config.outputs.matrix }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup build environment for ${{ matrix.app-dir }}
+      - id: read-config
+        name: Read config.json and extract app IDs
+        shell: bash
+        run: |
+          echo "🔍 Reading config.json..."
+          cat config.json || echo "❌ config.json not found!"
+
+          # Extract keys under .apps (["source_1","source_2",...])
+          MATRIX=$(jq -c '.apps | keys' config.json)
+
+          echo "🔍 Extracted matrix: $MATRIX"
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+  build-and-test:
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        app-id: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup build environment for ${{ matrix.app-id }}
+        id: setup
         uses: ./.github/actions/setup
         with:
-          app-dir: ${{ matrix.app-dir }}
+          app-id: ${{ matrix.app-id }}
           config-path: ./config.json
 
       - name: Set up Docker Buildx
@@ -34,21 +59,30 @@ jobs:
         run: |
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-
-
       - name: Build & Push Image
         if: github.event_name != 'pull_request'
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          IMAGE_NAME: ${{ matrix.app-dir }}
+          APP_DIR: ${{ steps.setup.outputs.directory }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          # Build the image
-          docker build -t $DOCKERHUB_USERNAME/$IMAGE_NAME:latest $IMAGE_NAME
-          
-          # Push the latest tag
-          docker push $DOCKERHUB_USERNAME/$IMAGE_NAME:latest
-          
-          # Tag and push with commit SHA
-          docker tag $DOCKERHUB_USERNAME/$IMAGE_NAME:latest \
-                     $DOCKERHUB_USERNAME/$IMAGE_NAME:${{ github.sha }}
-          docker push $DOCKERHUB_USERNAME/$IMAGE_NAME:${{ github.sha }}
+          echo "📝 DEBUG: APP_DIR='$APP_DIR'"
+
+          IMAGE_APP=$(basename "$APP_DIR")
+          echo "📝 DEBUG: IMAGE_APP='$IMAGE_APP'"
+
+          if [ -z "$APP_DIR" ]; then
+            echo "❌ ERROR: APP_DIR is empty. Composite action did not output directory."
+            exit 1
+          fi
+
+          # Build image
+          docker build -t $DOCKERHUB_USERNAME/$IMAGE_APP:latest "$APP_DIR"
+
+          # Push latest
+          docker push $DOCKERHUB_USERNAME/$IMAGE_APP:latest
+
+          # Tag & push SHA version
+          docker tag $DOCKERHUB_USERNAME/$IMAGE_APP:latest \
+                      $DOCKERHUB_USERNAME/$IMAGE_APP:$COMMIT_SHA
+          docker push $DOCKERHUB_USERNAME/$IMAGE_APP:$COMMIT_SHA
