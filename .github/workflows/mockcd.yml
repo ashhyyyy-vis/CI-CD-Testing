@@ -29,10 +29,12 @@ jobs:
       - name: Extract app IDs
         id: app-ids
         run: |
-            APPS_JSON='${{ steps.read.outputs.apps }}'
-            # Convert the output to a proper JSON array
-            APP_IDS=$(echo "$APPS_JSON" | jq -r 'keys | tostring')
-            echo "ids=$APP_IDS" >> $GITHUB_OUTPUT
+          RAW='${{ steps.read.outputs.apps }}'
+          RAW_B64=$(printf "%s" "$RAW" | base64 -w0)
+          echo "apps_b64=$RAW_B64" >> $GITHUB_OUTPUT
+
+          IDS=$(echo "$RAW" | jq -c 'keys')
+          echo "ids=$IDS" >> $GITHUB_OUTPUT
 
   deploy:
     needs: prepare
@@ -54,12 +56,18 @@ jobs:
         run: |
           APP_KEY="${{ matrix.app-id }}"
           APP_KEY=$(echo "$APP_KEY" | sed 's/^"//' | sed 's/"$//')
-          APP_JSON=$(jq -c --arg k "$APP_KEY" '.[$k]' <<< "${{ needs.prepare.outputs.apps-json }}")
-          
-          echo "=== MOCK: Parsed App Config ==="
-          echo "$APP_JSON" | jq '.'
-          echo "=============================="
 
+          # Decode base64 safely
+          APPS_JSON=$(echo "${{ needs.prepare.outputs.apps-json }}" | base64 -d)
+
+          # Extract single app JSON
+          APP_JSON=$(printf "%s" "$APPS_JSON" | jq -c --arg k "$APP_KEY" '.[$k]')
+
+          echo "=== Parsed App Config ==="
+          echo "$APP_JSON" | jq '.'
+          echo "========================="
+
+          # Outputs
           echo "image_repo=$(echo "$APP_JSON" | jq -r '.image_repo')" >> $GITHUB_OUTPUT
           echo "launch_template_id=$(echo "$APP_JSON" | jq -r '.launch_template_id')" >> $GITHUB_OUTPUT
           echo "asg_name=$(echo "$APP_JSON" | jq -r '.asg_name')" >> $GITHUB_OUTPUT
