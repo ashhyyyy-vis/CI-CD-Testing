@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       apps-json: ${{ steps.read.outputs.apps }}
-      app-ids: ${{ steps.ids.outputs.ids }}
+      app-ids: ${{ steps.app-ids.outputs.ids }}  # Fixed: Changed from steps.ids to steps.app-ids
     steps:
       - uses: actions/checkout@v4
 
@@ -27,15 +27,20 @@ jobs:
           echo "apps=$APPS" >> $GITHUB_OUTPUT
 
       - name: Extract app IDs
-        id: app-ids
-        run: |
-         RAW="${{ steps.read.outputs.apps }}"
-         IDS=$(printf '%s' "$RAW" | jq -c 'keys')
-         echo "ids=$IDS" >> $GITHUB_OUTPUT
-
+        id: app-ids  # This needs to match the ID used in outputs
+        run: |  # Fixed indentation
+          RAW=$(cat << 'EOF'
+${{ steps.read.outputs.apps }}
+EOF
+)
+          IDS=$(printf '%s' "$RAW" | jq -c 'keys')
+          echo "ids=$IDS" >> $GITHUB_OUTPUT
 
   deploy:
     needs: prepare
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    # ... rest of the file remains the same ...
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
