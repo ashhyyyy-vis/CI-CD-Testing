@@ -13,6 +13,7 @@ jobs:
       apps-json: ${{ steps.read.outputs.apps }}
       app-ids: ${{ steps.app-ids.outputs.ids }}
       apps-b64: ${{ steps.app-ids.outputs.apps_b64 }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -30,9 +31,13 @@ jobs:
       - name: Extract app IDs
         id: app-ids
         run: |
-          RAW='${{ steps.read.outputs.apps_b64 }}'
+          RAW='${{ steps.read.outputs.apps }}'
+
+          # base64 encode the RAW JSON
           RAW_B64=$(printf "%s" "$RAW" | base64 -w0)
           echo "apps_b64=$RAW_B64" >> $GITHUB_OUTPUT
+
+          # extract the keys as a JSON array: ["source_1","source_2"]
           IDS=$(echo "$RAW" | jq -c 'keys')
           echo "ids=$IDS" >> $GITHUB_OUTPUT
 
