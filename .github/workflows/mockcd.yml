@@ -12,6 +12,7 @@ jobs:
     outputs:
       apps-json: ${{ steps.read.outputs.apps }}
       app-ids: ${{ steps.app-ids.outputs.ids }}
+      apps-b64: ${{ steps.app-ids.outputs.apps_b64 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,10 +30,9 @@ jobs:
       - name: Extract app IDs
         id: app-ids
         run: |
-          RAW='${{ steps.read.outputs.apps }}'
+          RAW='${{ steps.read.outputs.apps_b64 }}'
           RAW_B64=$(printf "%s" "$RAW" | base64 -w0)
           echo "apps_b64=$RAW_B64" >> $GITHUB_OUTPUT
-
           IDS=$(echo "$RAW" | jq -c 'keys')
           echo "ids=$IDS" >> $GITHUB_OUTPUT
 
@@ -58,7 +58,7 @@ jobs:
           APP_KEY=$(echo "$APP_KEY" | sed 's/^"//' | sed 's/"$//')
 
           # Decode base64 safely
-          APPS_JSON=$(echo "${{ needs.prepare.outputs.apps-json }}" | base64 -d)
+          APPS_JSON=$(echo "${{ needs.prepare.outputs.apps-b64 }}" | base64 -d)
 
           # Extract single app JSON
           APP_JSON=$(printf "%s" "$APPS_JSON" | jq -c --arg k "$APP_KEY" '.[$k]')
